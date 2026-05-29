@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"d:\\\\Apps\\\\binance-bot\\\\binance-bot\" -Recurse -Depth 3)",
+      "Bash(Select-Object -Property FullName)",
+      "Bash(ls -la \"d:\\\\Apps\\\\binance-bot\\\\binance-bot\\\\\" | grep -E \"^\\\\.\" | head -20)",
+      "Read(//d/Apps/binance-bot/**)"
+    ]
+  }
+}
