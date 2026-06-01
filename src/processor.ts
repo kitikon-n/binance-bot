@@ -44,9 +44,11 @@ export async function processSignal(payload: any): Promise<void> {
 
     const { side, positionSide } = actionToOrder(action);
 
-    // 3) เช็ค trend filter
+    // 3) เช็ค trend filter (ยกเว้น close_long — ปิด position ได้เสมอ)
     const currentTrend = await getMainTrend(symbol);
-    const trendCheck = checkTrendRule(action, currentTrend);
+    const trendCheck = (action === "close_long" || action === "close_short")
+      ? { allowed: true }
+      : checkTrendRule(action, currentTrend);
 
     if (!trendCheck.allowed) {
       await supabase.from("trades").insert({
