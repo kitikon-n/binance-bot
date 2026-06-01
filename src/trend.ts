@@ -17,8 +17,8 @@ export function checkTrendRule(
   if (trend === null) return { allowed: true };
 
   const rules: Record<string, string[]> = {
-    open_long: ["DOWN"],
-    open_short: ["UP"],
+    open_long: ["UP"],
+    open_short: ["DOWN"],
     close_long: ["NEUTRAL", "UP"],
     close_short: ["NEUTRAL", "DOWN"],
   };
