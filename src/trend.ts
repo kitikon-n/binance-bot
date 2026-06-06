@@ -9,6 +9,20 @@ export async function getMainTrend(symbol: string): Promise<string | null> {
   return data?.trend ?? null;
 }
 
+export async function getTrends(
+  symbol: string
+): Promise<{ trend: string | null; small_trend: string | null }> {
+  const { data } = await supabase
+    .from("main_trends")
+    .select("trend, small_trend")
+    .eq("symbol", symbol)
+    .maybeSingle();
+  return {
+    trend: data?.trend ?? null,
+    small_trend: data?.small_trend ?? null,
+  };
+}
+
 export function checkTrendRule(
   action: string,
   trend: string | null

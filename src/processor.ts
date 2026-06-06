@@ -4,7 +4,7 @@ import {
   getPositions,
   placeFuturesOrder,
 } from "./binance.js";
-import { getMainTrend, checkTrendRule } from "./trend.js";
+import { getTrends, checkTrendRule } from "./trend.js";
 
 export async function processSignal(payload: any): Promise<void> {
   const { strategy, secret, action, symbol } = payload;
@@ -44,11 +44,25 @@ export async function processSignal(payload: any): Promise<void> {
 
     const { side, positionSide } = actionToOrder(action);
 
-    // 3) เช็ค trend filter (ยกเว้น close_long — ปิด position ได้เสมอ)
-    const currentTrend = await getMainTrend(symbol);
-    const trendCheck = (action === "close_long" || action === "close_short")
-      ? { allowed: true }
-      : checkTrendRule(action, currentTrend);
+    // 3) เช็ค trend filter
+    const { trend: currentTrend, small_trend: currentSmallTrend } = await getTrends(symbol);
+
+    let trendCheck: { allowed: boolean; reason?: string };
+    if (action === "close_long" || action === "close_short") {
+      trendCheck = { allowed: true };
+    } else if (action === "open_long") {
+      const allowed = currentTrend === "UP" && currentSmallTrend === "UP";
+      trendCheck = allowed
+        ? { allowed: true }
+        : { allowed: false, reason: `open_long requires trend=UP and small_trend=UP, got trend=${currentTrend} small_trend=${currentSmallTrend}` };
+    } else if (action === "open_short") {
+      const allowed = currentTrend === "DOWN" && currentSmallTrend === "DOWN";
+      trendCheck = allowed
+        ? { allowed: true }
+        : { allowed: false, reason: `open_short requires trend=DOWN and small_trend=DOWN, got trend=${currentTrend} small_trend=${currentSmallTrend}` };
+    } else {
+      trendCheck = checkTrendRule(action, currentTrend);
+    }
 
     if (!trendCheck.allowed) {
       await supabase.from("trades").insert({
@@ -61,6 +75,7 @@ export async function processSignal(payload: any): Promise<void> {
         binance_response: {
           reason: trendCheck.reason,
           current_trend: currentTrend,
+          current_small_trend: currentSmallTrend,
         },
       });
       await supabase
@@ -125,7 +140,7 @@ export async function processSignal(payload: any): Promise<void> {
       quantity: quantityToUse,
       binance_order_id: order.orderId,
       status: "success",
-      binance_response: { ...order, trend_at_execution: currentTrend },
+      binance_response: { ...order, trend_at_execution: currentTrend, small_trend_at_execution: currentSmallTrend },
     });
 
     await supabase
