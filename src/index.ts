@@ -1,6 +1,6 @@
 import Fastify from "fastify";
 import { processSignal } from "./processor.js";
-import { updateMainTrend } from "./trend.js";
+import { updateMainTrend, updateSmallTrend } from "./trend.js";
 
 const TREND_SECRET = process.env.TREND_WEBHOOK_SECRET!;
 const PORT = parseInt(process.env.PORT ?? "3000", 10);
@@ -81,6 +81,35 @@ fastify.post("/webhook/trend", async (request, reply) => {
       raw_payload: payload,
     }).catch((err) => {
       request.log.error({ err }, "updateMainTrend failed");
+    });
+  });
+
+  return reply.code(202).send({ ok: true, received: true });
+});
+
+// ─── Small trend update webhook ──────────────────────────────
+
+fastify.post("/webhook/small-trend", async (request, reply) => {
+  const payload = request.body as any;
+
+  if (!payload?.secret || !payload?.symbol || !payload?.small_trend) {
+    return reply
+      .code(400)
+      .send({ ok: false, error: "Missing required fields" });
+  }
+
+  if (payload.secret !== TREND_SECRET) {
+    return reply.code(401).send({ ok: false, error: "Invalid secret" });
+  }
+
+  setImmediate(() => {
+    updateSmallTrend({
+      symbol: payload.symbol,
+      small_trend: payload.small_trend,
+      timeframe: payload.timeframe,
+      source: payload.source,
+    }).catch((err) => {
+      fastify.log.error({ err }, "updateSmallTrend failed");
     });
   });
 

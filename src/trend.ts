@@ -92,3 +92,33 @@ export async function updateMainTrend(payload: {
 
   return { ok: true };
 }
+
+export async function updateSmallTrend(payload: {
+  symbol: string;
+  small_trend: string;
+  timeframe?: string;
+  source?: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const { symbol, small_trend, timeframe, source } = payload;
+
+  if (!symbol || typeof symbol !== "string") {
+    return { ok: false, error: "Invalid symbol" };
+  }
+  if (!small_trend || !VALID_TRENDS.includes(small_trend)) {
+    return { ok: false, error: `Invalid small_trend: ${small_trend}` };
+  }
+
+  const symbolUpper = symbol.toUpperCase();
+
+  const { error: upsertErr } = await supabase.from("main_trends").upsert({
+    symbol: symbolUpper,
+    small_trend,
+    small_trend_timeframe: timeframe ?? null,
+    small_trend_source: source ?? null,
+    small_trend_updated_at: new Date().toISOString(),
+  });
+
+  if (upsertErr) return { ok: false, error: upsertErr.message };
+
+  return { ok: true };
+}
