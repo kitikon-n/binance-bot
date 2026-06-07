@@ -88,7 +88,7 @@ export async function updateMainTrend(payload: {
     timeframe: timeframe ?? null,
     source: source ?? null,
     updated_at: new Date().toISOString(),
-  });
+  }, { onConflict: "symbol" });
 
   if (upsertErr) return { ok: false, error: upsertErr.message };
 
@@ -130,7 +130,7 @@ export async function updateSmallTrend(payload: {
     small_trend_timeframe: timeframe ?? null,
     small_trend_source: source ?? null,
     small_trend_updated_at: new Date().toISOString(),
-  });
+  }, { onConflict: "symbol" });
 
   if (upsertErr) return { ok: false, error: upsertErr.message };
 
