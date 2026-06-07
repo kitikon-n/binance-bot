@@ -108,6 +108,8 @@ fastify.post("/webhook/small-trend", async (request, reply) => {
       small_trend: payload.small_trend,
       timeframe: payload.timeframe,
       source: payload.source,
+    }).then((result) => {
+      fastify.log.info({ result }, "updateSmallTrend result");
     }).catch((err) => {
       fastify.log.error({ err }, "updateSmallTrend failed");
     });

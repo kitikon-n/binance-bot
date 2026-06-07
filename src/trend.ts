@@ -124,13 +124,15 @@ export async function updateSmallTrend(payload: {
 
   const symbolUpper = symbol.toUpperCase();
 
-  const { error: upsertErr } = await supabase.from("main_trends").upsert({
-    symbol: symbolUpper,
-    small_trend,
-    small_trend_timeframe: timeframe ?? null,
-    small_trend_source: source ?? null,
-    small_trend_updated_at: new Date().toISOString(),
-  }, { onConflict: "symbol" });
+  const { error: upsertErr } = await supabase
+    .from("main_trends")
+    .update({
+      small_trend,
+      small_trend_timeframe: timeframe ?? null,
+      small_trend_source: source ?? null,
+      small_trend_updated_at: new Date().toISOString(),
+    })
+    .eq("symbol", symbolUpper);
 
   if (upsertErr) return { ok: false, error: upsertErr.message };
 
