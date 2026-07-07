@@ -7,7 +7,7 @@ import {
 import { getTrends, checkTrendRule } from "./trend.js";
 
 export async function processSignal(payload: any): Promise<void> {
-  const { strategy, secret, action, symbol } = payload;
+  const { strategy, secret, action, symbol, use_trend_filter = true } = payload;
   let signalRowId: string | undefined;
 
   try {
@@ -48,7 +48,7 @@ export async function processSignal(payload: any): Promise<void> {
     const { trend: currentTrend, small_trend: currentSmallTrend } = await getTrends(symbol);
 
     let trendCheck: { allowed: boolean; reason?: string };
-    if (action === "close_long" || action === "close_short") {
+    if (!use_trend_filter || action === "close_long" || action === "close_short") {
       trendCheck = { allowed: true };
     } else if (action === "open_long") {
       const allowed = currentTrend === "UP" && currentSmallTrend === "UP";
