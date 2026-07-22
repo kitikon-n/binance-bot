@@ -59,11 +59,18 @@ export async function getPositions(symbol: string) {
   const positions = await signedRequest("GET", "/fapi/v2/positionRisk", {
     symbol,
   });
-  const long = positions.find((p: any) => p.positionSide === "LONG");
-  const short = positions.find((p: any) => p.positionSide === "SHORT");
+  // รวมทุกแถวของแต่ละฝั่ง เผื่อ Binance คืนหลาย position ต่อ positionSide
+  const sumSide = (side: string) =>
+    positions
+      .filter((p: any) => p.positionSide === side)
+      .reduce(
+        (acc: number, p: any) => acc + Math.abs(parseFloat(p.positionAmt) || 0),
+        0
+      );
+
   return {
-    longAmt: long ? parseFloat(long.positionAmt) : 0,
-    shortAmt: short ? Math.abs(parseFloat(short.positionAmt)) : 0,
+    longAmt: sumSide("LONG"),
+    shortAmt: sumSide("SHORT"),
   };
 }
 
