@@ -122,25 +122,16 @@ export async function processSignal(payload: any): Promise<void> {
     }
 
     // 5) ส่งคำสั่ง
-    // ตอนปิด: ใช้ closePosition=true ให้ Binance ปิดทั้งฝั่งเอง
-    // (ห้ามส่ง quantity คู่กับ closePosition — Binance จะ reject)
-    const order = await placeFuturesOrder(
-      isCloseAction
-        ? {
-            symbol,
-            side,
-            positionSide,
-            type: "MARKET",
-            closePosition: "true",
-          }
-        : {
-            symbol,
-            side,
-            positionSide,
-            type: "MARKET",
-            quantity: quantityToUse,
-          }
-    );
+    // ตอนปิด: ส่ง quantity ที่ดึงสดจาก Binance (ทั้งฝั่ง)
+    // ใน Hedge Mode การ SELL positionSide=LONG จะลด LONG ฝั่งเดียวอยู่แล้ว
+    // (closePosition=true ใช้กับ MARKET ไม่ได้ → error -4136)
+    const order = await placeFuturesOrder({
+      symbol,
+      side,
+      positionSide,
+      type: "MARKET",
+      quantity: quantityToUse,
+    });
 
     // 6) บันทึก success
     await supabase.from("trades").insert({
@@ -157,7 +148,7 @@ export async function processSignal(payload: any): Promise<void> {
         trend_at_execution: currentTrend,
         small_trend_at_execution: currentSmallTrend,
         ...(isCloseAction
-          ? { close_mode: "closePosition", position_amt_at_signal: quantityToUse }
+          ? { close_mode: "reduce_by_quantity", position_amt_at_signal: quantityToUse }
           : {}),
       },
     });
