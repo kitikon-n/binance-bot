@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EMAx Bot Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f6f8; --panel: #ffffff; --panel-2: #f0f2f5; --border: #dfe3e8;
+    --text: #1a1f26; --muted: #66707c; --accent: #2f6fed; --accent-text: #fff;
+    --green: #15924f; --green-bg: #e3f5eb; --red: #d23b3b; --red-bg: #fbe7e7;
+    --amber: #b7791f; --amber-bg: #fcf1dd; --shadow: 0 1px 2px rgba(16,24,40,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1216; --panel: #171b21; --panel-2: #1e232b; --border: #2a313b;
+      --text: #e6e9ee; --muted: #8b95a3; --accent: #5b8cff; --accent-text: #0b0e12;
+      --green: #3fcf82; --green-bg: #13301f; --red: #ff6b6b; --red-bg: #3a1a1c;
+      --amber: #f0b44c; --amber-bg: #372a12; --shadow: none;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1216; --panel: #171b21; --panel-2: #1e232b; --border: #2a313b;
+    --text: #e6e9ee; --muted: #8b95a3; --accent: #5b8cff; --accent-text: #0b0e12;
+    --green: #3fcf82; --green-bg: #13301f; --red: #ff6b6b; --red-bg: #3a1a1c;
+    --amber: #f0b44c; --amber-bg: #372a12; --shadow: none;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.5 "IBM Plex Sans Thai", system-ui, sans-serif;
+  }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  header {
+    position: sticky; top: 0; z-index: 5; background: var(--panel);
+    border-bottom: 1px solid var(--border); padding: 10px 16px;
+    display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+  }
+  header h1 { font-size: 16px; font-weight: 600; margin: 0 8px 0 0; }
+  select, input[type=text], input[type=number] {
+    font: inherit; color: var(--text); background: var(--panel-2);
+    border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; min-width: 0;
+  }
+  input[type=number] { width: 100%; font-family: "IBM Plex Mono", monospace; }
+  select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px;
+    border-radius: 999px; font-size: 12px; font-weight: 500; background: var(--panel-2); color: var(--muted);
+  }
+  .pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .pill.ok { color: var(--green); background: var(--green-bg); }
+  .pill.bad { color: var(--red); background: var(--red-bg); }
+  .pill.warn { color: var(--amber); background: var(--amber-bg); }
+  .spacer { flex: 1; }
+  main {
+    max-width: 1280px; margin: 0 auto; padding: 16px;
+    display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px;
+  }
+  @media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: var(--shadow); padding: 14px 16px; margin-bottom: 16px;
+  }
+  .card h2 { font-size: 14px; font-weight: 600; margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+  .card h2 .hint { font-weight: 400; color: var(--muted); font-size: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px 14px; }
+  label.field { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--muted); }
+  label.field span.t { color: var(--text); font-weight: 500; }
+  label.toggle {
+    display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;
+    padding: 6px 0; grid-column: 1 / -1;
+  }
+  label.toggle small { color: var(--muted); }
+  input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent); flex: none; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  button {
+    font: inherit; font-weight: 500; border-radius: 6px; padding: 7px 14px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--panel-2); color: var(--text);
+  }
+  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  button:disabled { opacity: .5; cursor: default; }
+  .msg { font-size: 13px; }
+  .msg.ok { color: var(--green); } .msg.bad { color: var(--red); }
+  .master {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 10px 12px; border-radius: 8px; background: var(--panel-2); margin-bottom: 12px;
+  }
+  .master b { font-weight: 600; }
+  .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--border); border-radius: 8px; overflow: hidden; }
+  .stat { background: var(--panel); padding: 8px 12px; }
+  .stat .k { font-size: 12px; color: var(--muted); }
+  .stat .v { font-size: 15px; font-weight: 500; }
+  .up { color: var(--green); } .down { color: var(--red); } .flat { color: var(--amber); }
+  .levels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+  .lv { border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 12.5px; }
+  .lv h3 { margin: 0 0 4px; font-size: 13px; }
+  .lv .row { display: flex; justify-content: space-between; }
+  .tablewrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 500; }
+  td.reason { white-space: normal; min-width: 180px; color: var(--muted); }
+  .tag { padding: 1px 8px; border-radius: 4px; font-size: 11.5px; font-weight: 500; }
+  .tag.success { background: var(--green-bg); color: var(--green); }
+  .tag.failed, .tag.error { background: var(--red-bg); color: var(--red); }
+  .tag.blocked, .tag.skipped, .tag.pending { background: var(--amber-bg); color: var(--amber); }
+  .empty { color: var(--muted); padding: 12px 0; }
+  [title] { text-decoration-style: dotted; }
+</style>
+</head>
+<body>
+<header>
+  <h1>EMAx Bot</h1>
+  <select id="strategy" aria-label="Strategy"></select>
+  <span id="symbol" class="mono" style="color:var(--muted)"></span>
+  <span id="engineState" class="pill">—</span>
+  <span class="spacer"></span>
+  <button id="themeBtn" title="สลับธีม">◐</button>
+</header>
+
+<main>
+  <!-- ─── Settings ─────────────────────────────────────────── -->
+  <section>
+    <form id="form" autocomplete="off">
+      <div class="card">
+        <div class="master">
+          <div><b>เปิดใช้ indicator engine</b><br><small style="color:var(--muted)">ปิด = bot ไม่ส่งสัญญาณเอง (webhook TradingView ยังรับได้)</small></div>
+          <input type="checkbox" name="enabled" aria-label="enabled">
+        </div>
+        <div class="grid">
+          <label class="field"><span class="t">Timeframe</span>
+            <select name="interval"></select></label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>① EMA Cross Engine</h2>
+        <div class="grid">
+          <label class="field" title="สั้น = ไว/สัญญาณบ่อย, ยาว = ช้า/สัญญาณน้อย"><span class="t">Fast EMA</span>
+            <input type="number" name="ema_fast" min="1" max="500" step="1"></label>
+          <label class="field"><span class="t">Slow EMA</span>
+            <input type="number" name="ema_slow" min="1" max="500" step="1"></label>
+          <label class="field"><span class="t">Source</span>
+            <select name="ema_src">
+              <option>close</option><option>open</option><option>high</option><option>low</option>
+              <option>hl2</option><option>hlc3</option><option>ohlc4</option>
+            </select></label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>①·5 EMA Slope Filter</h2>
+        <div class="grid">
+          <label class="toggle"><input type="checkbox" name="use_slope">
+            ต้องให้ EMA ช้าชันไปทางเดียวกับสัญญาณ <small>— หลบช่วงหัวเลี้ยวที่เส้นแบน</small></label>
+          <label class="field" title="เทียบ EMA ช้าตอนนี้กับเมื่อ N แท่งก่อน | น้อย=ไว, มาก=นิ่ง"><span class="t">Lookback (bars)</span>
+            <input type="number" name="slope_lookback" min="1" max="100" step="1"></label>
+          <label class="field" title="0 = แค่ทิศ, เพิ่ม = เข้มขึ้น"><span class="t">Min slope (× ATR)</span>
+            <input type="number" name="slope_thresh" min="0" max="10" step="0.01"></label>
+          <label class="field"><span class="t">ATR length</span>
+            <input type="number" name="slope_atr_len" min="1" max="500" step="1"></label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>② Volume Confirmation</h2>
+        <div class="grid">
+          <label class="toggle"><input type="checkbox" name="use_vol">
+            ต้องมี volume ยืนยัน <small>— volume สูงกว่าค่าเฉลี่ย = มีแรงร่วมจริง</small></label>
+          <label class="field"><span class="t">Volume avg length</span>
+            <input type="number" name="vol_len" min="1" max="500" step="1"></label>
+          <label class="field"><span class="t">Volume ≥ avg ×</span>
+            <input type="number" name="vol_mult" min="0" max="20" step="0.1"></label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>③ BTC Leader Bias <span class="hint">ใช้แท่งที่ปิดแล้วเท่านั้น (ไม่ repaint)</span></h2>
+        <div class="grid">
+          <label class="toggle"><input type="checkbox" name="use_htf">
+            กรองทิศตาม bias ของ symbol ผู้นำ</label>
+          <label class="field"><span class="t">Bias symbol</span>
+            <input type="text" name="bias_symbol" class="mono" pattern="[A-Z0-9]{2,20}" placeholder="BTCUSDT"></label>
+          <label class="field"><span class="t">Bias timeframe</span>
+            <select name="htf_interval"></select></label>
+          <label class="field"><span class="t">Swing / pivot length</span>
+            <input type="number" name="htf_swing_len" min="2" max="50" step="1"></label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>④ SL / TP (fixed RR)</h2>
+        <div class="grid">
+          <label class="field" title="ระยะ SL เป็น % ของราคา — ฐานของ risk"><span class="t">SL distance (%)</span>
+            <input type="number" name="sl_pct" min="0.01" max="20" step="0.05"></label>
+          <label class="field"><span class="t">TP1 (RR)</span>
+            <input type="number" name="rr1" min="0.1" max="20" step="0.1"></label>
+          <label class="field"><span class="t">TP2 (RR)</span>
+            <input type="number" name="rr2" min="0.1" max="20" step="0.1"></label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>⑤ Close Signal</h2>
+        <div class="grid">
+          <label class="toggle"><input type="checkbox" name="use_close_tp1"> ปิดเมื่อราคาแตะ TP1</label>
+          <label class="toggle"><input type="checkbox" name="use_close_sl"> ปิดเมื่อราคาแตะ SL</label>
+          <label class="toggle"><input type="checkbox" name="use_close_opp"> ปิดเมื่อเกิดสัญญาณฝั่งตรงข้าม</label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>⑥ Signals</h2>
+        <div class="grid">
+          <label class="toggle"><input type="checkbox" name="allow_long"> อนุญาต LONG (Buy)</label>
+          <label class="toggle"><input type="checkbox" name="allow_short"> อนุญาต SHORT (Sell)</label>
+        </div>
+      </div>
+
+      <div class="card actions" style="position:sticky;bottom:12px;z-index:4">
+        <button type="submit" class="primary" id="saveBtn">บันทึก & รีโหลด engine</button>
+        <button type="button" id="resetBtn">คืนค่า default</button>
+        <button type="button" id="revertBtn">ยกเลิกการแก้ไข</button>
+        <span id="msg" class="msg"></span>
+      </div>
+    </form>
+  </section>
+
+  <!-- ─── Dashboard ────────────────────────────────────────── -->
+  <section>
+    <div class="card">
+      <h2>สถานะ indicator <span class="hint" id="barTime"></span></h2>
+      <div id="dash"><div class="empty">engine ยังไม่ทำงานสำหรับ strategy นี้</div></div>
+    </div>
+
+    <div class="card">
+      <h2>สัญญาณจาก engine <span class="hint">ล่าสุด 50 รายการ (หน่วยความจำ)</span></h2>
+      <div class="tablewrap" id="events"></div>
+    </div>
+
+    <div class="card">
+      <h2>Signals / Trades <span class="hint">จากฐานข้อมูล</span></h2>
+      <div class="tablewrap" id="signals"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const INTERVALS = ["1m","3m","5m","15m","30m","1h","2h","4h","1d"];
+const $ = (s) => document.querySelector(s);
+const form = $("#form");
+let current = null, defaults = null, strategies = [];
+
+// ─── theme ─────────────────────────────
+function applyTheme(t) {
+  if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
+}
+try { applyTheme(localStorage.getItem("theme")); } catch {}
+$("#themeBtn").onclick = () => {
+  const dark = document.documentElement.dataset.theme
+    ? document.documentElement.dataset.theme === "dark"
+    : matchMedia("(prefers-color-scheme: dark)").matches;
+  const next = dark ? "light" : "dark";
+  applyTheme(next);
+  try { localStorage.setItem("theme", next); } catch {}
+};
+
+for (const name of ["interval", "htf_interval"]) {
+  form.elements[name].innerHTML = INTERVALS.map((i) => `<option>${i}</option>`).join("");
+}
+
+// ─── helpers ───────────────────────────
+async function api(path, opts) {
+  const res = await fetch(path, { headers: { "content-type": "application/json" }, ...opts });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || data.message || res.statusText);
+  return data;
+}
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmt = (v, d = 4) => (v == null || Number.isNaN(v) ? "—" : Number(v).toFixed(d));
+const time = (t) => (t ? new Date(t).toLocaleString("th-TH", { hour12: false }) : "—");
+function setMsg(text, kind) { const m = $("#msg"); m.textContent = text; m.className = "msg " + (kind || ""); }
+
+function fillForm(s) {
+  for (const el of form.elements) {
+    if (!el.name || !(el.name in s)) continue;
+    if (el.type === "checkbox") el.checked = !!s[el.name];
+    else el.value = s[el.name];
+  }
+}
+function readForm() {
+  const out = {};
+  for (const key of Object.keys(defaults)) {
+    const el = form.elements[key];
+    if (!el) continue;
+    if (el.type === "checkbox") out[key] = el.checked;
+    else if (el.type === "number") out[key] = Number(el.value);
+    else out[key] = key === "bias_symbol" ? el.value.trim().toUpperCase() : el.value;
+  }
+  return out;
+}
+
+// ─── load ──────────────────────────────
+async function loadStrategies() {
+  strategies = await api("/api/strategies");
+  const sel = $("#strategy");
+  if (!strategies.length) {
+    sel.innerHTML = "<option>ไม่มี strategy ในฐานข้อมูล</option>";
+    return;
+  }
+  let saved = null;
+  try { saved = localStorage.getItem("strategy"); } catch {}
+  sel.innerHTML = strategies.map((s) =>
+    `<option value="${esc(s.name)}">${esc(s.name)}${s.indicator_enabled ? " ●" : ""}</option>`).join("");
+  if (saved && strategies.some((s) => s.name === saved)) sel.value = saved;
+  await loadSettings();
+}
+
+async function loadSettings() {
+  const name = $("#strategy").value;
+  try { localStorage.setItem("strategy", name); } catch {}
+  const strat = strategies.find((s) => s.name === name);
+  $("#symbol").textContent = strat ? strat.symbol + (strat.enabled ? "" : " (strategy disabled)") : "";
+  const res = await api(`/api/indicator-settings/${encodeURIComponent(name)}`);
+  current = res.settings; defaults = res.defaults;
+  fillForm(current);
+  setMsg(res.exists ? "" : "ยังไม่เคยบันทึก — แสดงค่า default", "");
+  refresh();
+}
+
+$("#strategy").onchange = loadSettings;
+$("#revertBtn").onclick = () => { fillForm(current); setMsg("ยกเลิกการแก้ไขแล้ว"); };
+$("#resetBtn").onclick = () => {
+  const enabled = form.elements.enabled.checked;
+  fillForm({ ...defaults, enabled });
+  setMsg("คืนค่า default แล้ว — กดบันทึกเพื่อใช้งาน");
+};
+
+form.onsubmit = async (e) => {
+  e.preventDefault();
+  const body = readForm();
+  if (body.ema_fast >= body.ema_slow) return setMsg("Fast EMA ต้องน้อยกว่า Slow EMA", "bad");
+  if (body.enabled && !confirm("บันทึกและรีโหลด engine?\nengine จะเริ่มส่งคำสั่งจริงไป Binance เมื่อเกิดสัญญาณ")) return;
+  $("#saveBtn").disabled = true;
+  setMsg("กำลังบันทึก…");
+  try {
+    const name = $("#strategy").value;
+    const res = await api(`/api/indicator-settings/${encodeURIComponent(name)}`, { method: "PUT", body: JSON.stringify(body) });
+    current = res.settings;
+    const s = strategies.find((x) => x.name === name);
+    if (s) s.indicator_enabled = current.enabled;
+    setMsg("บันทึกแล้ว — engine กำลัง warm-up", "ok");
+    setTimeout(refresh, 1500);
+  } catch (err) {
+    setMsg("บันทึกไม่สำเร็จ: " + err.message, "bad");
+  } finally {
+    $("#saveBtn").disabled = false;
+  }
+};
+
+// ─── dashboard ─────────────────────────
+function trendCell(v) {
+  return v === 1 ? '<span class="up">BULL ▲</span>' : v === -1 ? '<span class="down">BEAR ▼</span>' : '<span class="flat">—</span>';
+}
+function levelBox(title, lv, cls) {
+  if (!lv) return `<div class="lv"><h3>${title}</h3><div style="color:var(--muted)">ไม่มี position</div></div>`;
+  return `<div class="lv"><h3 class="${cls}">${title}</h3>
+    <div class="row"><span>Entry</span><span class="mono">${fmt(lv.entry)}</span></div>
+    <div class="row"><span>SL</span><span class="mono down">${fmt(lv.sl)}</span></div>
+    <div class="row"><span>TP1</span><span class="mono up">${fmt(lv.tp1)}</span></div>
+    <div class="row"><span>TP2</span><span class="mono up">${fmt(lv.tp2)}</span></div></div>`;
+}
+
+function renderStatus(st) {
+  const pill = $("#engineState");
+  if (!st) {
+    pill.className = "pill"; pill.textContent = "engine ปิด";
+    $("#dash").innerHTML = '<div class="empty">engine ยังไม่ทำงานสำหรับ strategy นี้ — เปิด toggle แล้วกดบันทึก</div>';
+    $("#events").innerHTML = ""; $("#barTime").textContent = "";
+    return;
+  }
+  if (st.state === "running" && st.connected) { pill.className = "pill ok"; pill.textContent = "running"; }
+  else if (st.state === "error") { pill.className = "pill bad"; pill.textContent = "error"; }
+  else { pill.className = "pill warn"; pill.textContent = st.state === "running" ? "reconnecting" : st.state; }
+
+  const i = st.indicator;
+  $("#barTime").textContent = i?.barTime ? "แท่งล่าสุด " + time(i.barTime) : "";
+  const emaUp = i && i.emaFast != null && i.emaFast > i.emaSlow;
+  $("#dash").innerHTML = (st.error ? `<div class="msg bad" style="margin-bottom:8px">${esc(st.error)}</div>` : "") + (!i ? "" : `
+    <div class="stats">
+      <div class="stat"><div class="k">EMA</div><div class="v ${emaUp ? "up" : "down"}">${emaUp ? "FAST>SLOW ▲" : "FAST<SLOW ▼"}</div></div>
+      <div class="stat"><div class="k">ราคาปิด</div><div class="v mono">${fmt(i.close)}</div></div>
+      <div class="stat"><div class="k">Fast / Slow</div><div class="v mono">${fmt(i.emaFast)} / ${fmt(i.emaSlow)}</div></div>
+      <div class="stat"><div class="k">EMA slope (× ATR)</div><div class="v"><span class="${i.slope.toLowerCase()}">${i.slope}</span> <span class="mono" style="color:var(--muted);font-size:13px">${fmt(i.slopeInAtr, 3)}</span></div></div>
+      <div class="stat"><div class="k">BTC bias</div><div class="v">${trendCell(i.htfTrend)}</div></div>
+      <div class="stat"><div class="k">Volume</div><div class="v">${i.volOk ? '<span class="up">OK ✔</span>' : '<span class="flat">low ✖</span>'} <span class="mono" style="color:var(--muted);font-size:13px">${fmt(i.volume, 1)} / ${fmt(i.volAvg, 1)}</span></div></div>
+      <div class="stat"><div class="k">TP / SL hits</div><div class="v"><span class="up">${i.tpCount}</span> / <span class="down">${i.slCount}</span></div></div>
+      <div class="stat"><div class="k">Win rate</div><div class="v mono">${fmt(i.winRate, 1)}% <span style="color:var(--muted);font-size:13px">(${i.tpCount + i.slCount})</span></div></div>
+    </div>
+    <div class="levels">${levelBox("LONG", i.long, "up")}${levelBox("SHORT", i.short, "down")}</div>
+    <div style="color:var(--muted);font-size:12px;margin-top:8px">TP/SL hits นับรวมช่วง warm-up ย้อนหลัง</div>`);
+
+  $("#events").innerHTML = st.events.length ? `<table><thead><tr><th>เวลาแท่ง</th><th>Action</th><th>ราคา</th><th>หมายเหตุ</th></tr></thead><tbody>${
+    st.events.map((e) => `<tr><td>${time(e.barTime)}</td><td>${esc(e.action)}</td><td class="mono">${fmt(e.price)}</td><td class="reason">${esc(e.reason || "")}</td></tr>`).join("")
+  }</tbody></table>` : '<div class="empty">ยังไม่มีสัญญาณตั้งแต่ engine เริ่ม</div>';
+}
+
+function renderSignals(rows) {
+  $("#signals").innerHTML = rows.length ? `<table><thead><tr><th>เวลา</th><th>Action</th><th>ที่มา</th><th>ราคา</th><th>ผล</th><th>Qty</th><th>เหตุผล</th></tr></thead><tbody>${
+    rows.map((r) => `<tr><td>${time(r.created_at)}</td><td>${esc(r.action)}${r.close_reason ? ` <small style="color:var(--muted)">(${esc(r.close_reason)})</small>` : ""}</td>
+      <td>${esc(r.source)}</td><td class="mono">${fmt(r.price)}</td><td><span class="tag ${esc(r.status)}">${esc(r.status)}</span></td>
+      <td class="mono">${r.quantity ?? ""}</td><td class="reason">${esc(r.reason || "")}</td></tr>`).join("")
+  }</tbody></table>` : '<div class="empty">ยังไม่มีข้อมูล</div>';
+}
+
+async function refresh() {
+  const name = $("#strategy").value;
+  if (!name) return;
+  try {
+    const [status, signals] = await Promise.all([
+      api("/api/engine/status"),
+      api(`/api/signals/recent?strategy=${encodeURIComponent(name)}`),
+    ]);
+    renderStatus(status.find((s) => s.strategy === name));
+    renderSignals(signals);
+  } catch (err) {
+    $("#engineState").className = "pill bad";
+    $("#engineState").textContent = "โหลดไม่ได้";
+  }
+}
+
+loadStrategies().catch((err) => setMsg("โหลดไม่สำเร็จ: " + err.message, "bad"));
+setInterval(() => { if (!document.hidden) refresh(); }, 5000);
+</script>
+</body>
+</html>

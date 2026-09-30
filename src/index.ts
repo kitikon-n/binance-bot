@@ -1,6 +1,8 @@
 import Fastify from "fastify";
 import { processSignal } from "./processor.js";
 import { updateMainTrend, updateSmallTrend } from "./trend.js";
+import { adminRoutes } from "./admin.js";
+import { startEngine } from "./engine.js";
 
 const TREND_SECRET = process.env.TREND_WEBHOOK_SECRET!;
 const PORT = parseInt(process.env.PORT ?? "3000", 10);
@@ -118,6 +120,10 @@ fastify.post("/webhook/small-trend", async (request, reply) => {
   return reply.code(202).send({ ok: true, received: true });
 });
 
+// ─── Admin UI + API (ไม่มี auth — อย่าเผยแพร่ URL) ─────────────
+
+fastify.register(adminRoutes);
+
 // ─── Start server ─────────────────────────────────────────────
 
 async function start() {
@@ -125,6 +131,9 @@ async function start() {
     // listen ที่ 0.0.0.0 สำคัญสำหรับ Railway
     await fastify.listen({ port: PORT, host: "0.0.0.0" });
     console.log(`Server listening on port ${PORT}`);
+
+    // indicator engine: ดึงราคาจาก Binance แล้วส่งสัญญาณเอง (แทน TradingView)
+    await startEngine();
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);
