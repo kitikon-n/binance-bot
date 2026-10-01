@@ -39,7 +39,7 @@ No test suite exists. Validate changes by running `npm run dev` and sending test
 | `src/trend.ts` | Trend read/write logic and rule enforcement |
 | `src/supabase.ts` | Supabase client singleton |
 | `src/engine.ts` | One `StrategyRunner` per enabled `indicator_settings` row: warm-up replay → live closed bars → `processSignal()`; `reloadEngine()` on settings save |
-| `src/indicators/emaCross.ts` | Pine port: EMA cross + slope/ATR + volume + BTC pivot bias (`HtfBias`) + fixed-RR SL/TP close state |
+| `src/indicators/emaCross.ts` | Pine port: EMA cross + slope/ATR + volume + BTC pivot bias (`HtfBias`) + fixed-RR SL/TP close state + optional breakeven SL move (`use_breakeven`, `sql/002_breakeven.sql`) |
 | `src/indicators/ta.ts` | Streaming EMA/SMA/RMA/ATR/pivot matching Pine seeding |
 | `src/market/klines.ts` | Binance kline REST backfill + combined WS stream (closed bars only, reconnect + gap fill) |
 | `src/admin.ts` | `/admin` page + `/api/strategies`, `/api/indicator-settings/:strategy`, `/api/engine/status`, `/api/signals/recent` |

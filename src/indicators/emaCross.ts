@@ -29,6 +29,9 @@ export interface EmaCrossSettings {
   sl_pct: number;
   rr1: number;
   rr2: number;
+  use_breakeven: boolean;
+  be_trigger_r: number;
+  be_offset_pct: number;
   use_close_tp1: boolean;
   use_close_sl: boolean;
   use_close_opp: boolean;
@@ -41,15 +44,19 @@ export interface Levels {
   sl: number;
   tp1: number;
   tp2: number;
+  risk: number; // 1R เป็นหน่วยราคา
+  be: boolean; // SL ถูกเลื่อนไปจุดคุ้มทุนแล้ว
 }
+
+export type CloseReason = "tp1" | "sl" | "be" | "opposite";
 
 export interface EmaCrossResult {
   buy: boolean;
   sell: boolean;
   closeLong: boolean;
   closeShort: boolean;
-  closeLongReason?: "tp1" | "sl" | "opposite";
-  closeShortReason?: "tp1" | "sl" | "opposite";
+  closeLongReason?: CloseReason;
+  closeShortReason?: CloseReason;
 }
 
 export interface EmaCrossSnapshot {
@@ -69,6 +76,7 @@ export interface EmaCrossSnapshot {
   short: Levels | null;
   tpCount: number;
   slCount: number;
+  beCount: number;
   winRate: number;
 }
 
@@ -135,6 +143,7 @@ export class EmaCrossIndicator {
   private short: Levels | null = null;
   private tpCount = 0;
   private slCount = 0;
+  private beCount = 0;
 
   private snap: EmaCrossSnapshot;
 
@@ -185,12 +194,12 @@ export class EmaCrossIndicator {
     // SIGNAL STATE + LEVELS
     if (buy) {
       const r = (bar.close * s.sl_pct) / 100;
-      this.long = { entry: bar.close, sl: bar.close - r, tp1: bar.close + s.rr1 * r, tp2: bar.close + s.rr2 * r };
+      this.long = { entry: bar.close, sl: bar.close - r, tp1: bar.close + s.rr1 * r, tp2: bar.close + s.rr2 * r, risk: r, be: false };
       this.inLong = true;
     }
     if (sell) {
       const r = (bar.close * s.sl_pct) / 100;
-      this.short = { entry: bar.close, sl: bar.close + r, tp1: bar.close - s.rr1 * r, tp2: bar.close - s.rr2 * r };
+      this.short = { entry: bar.close, sl: bar.close + r, tp1: bar.close - s.rr1 * r, tp2: bar.close - s.rr2 * r, risk: r, be: false };
       this.inShort = true;
     }
 
@@ -209,8 +218,26 @@ export class EmaCrossIndicator {
     const closeShort = cShortTP || cShortSL || cShortOpp;
     if (closeShort) this.inShort = false;
 
+    // SL ที่ถูกเลื่อนไป breakeven แล้ว → นับเป็น BE ไม่ใช่ SL
+    const cLongBE = cLongSL && !!L?.be;
+    const cShortBE = cShortSL && !!S?.be;
+
     if (cLongTP || cShortTP) this.tpCount++;
-    if (cLongSL || cShortSL) this.slCount++;
+    if ((cLongSL && !cLongBE) || (cShortSL && !cShortBE)) this.slCount++;
+    if (cLongBE || cShortBE) this.beCount++;
+
+    // BREAKEVEN — เช็คหลัง close detection: SL ใหม่มีผลตั้งแต่แท่งถัดไป
+    // (ไม่รู้ลำดับ high/low ภายในแท่ง จึงไม่ใช้ SL ใหม่ในแท่งที่ trigger)
+    if (s.use_breakeven) {
+      if (this.inLong && !buy && L && !L.be && bar.high >= L.entry + s.be_trigger_r * L.risk) {
+        L.sl = Math.max(L.sl, L.entry * (1 + s.be_offset_pct / 100));
+        L.be = true;
+      }
+      if (this.inShort && !sell && S && !S.be && bar.low <= S.entry - s.be_trigger_r * S.risk) {
+        S.sl = Math.min(S.sl, S.entry * (1 - s.be_offset_pct / 100));
+        S.be = true;
+      }
+    }
 
     this.snap = this.buildSnapshot(bar, fast, slow, slopeInAtr, trend, volOk, volAvg);
 
@@ -219,8 +246,8 @@ export class EmaCrossIndicator {
       sell,
       closeLong,
       closeShort,
-      closeLongReason: closeLong ? (cLongSL ? "sl" : cLongTP ? "tp1" : "opposite") : undefined,
-      closeShortReason: closeShort ? (cShortSL ? "sl" : cShortTP ? "tp1" : "opposite") : undefined,
+      closeLongReason: closeLong ? (cLongBE ? "be" : cLongSL ? "sl" : cLongTP ? "tp1" : "opposite") : undefined,
+      closeShortReason: closeShort ? (cShortBE ? "be" : cShortSL ? "sl" : cShortTP ? "tp1" : "opposite") : undefined,
     };
   }
 
@@ -260,6 +287,7 @@ export class EmaCrossIndicator {
       short: this.inShort ? this.short : null,
       tpCount: this.tpCount,
       slCount: this.slCount,
+      beCount: this.beCount,
       winRate: total > 0 ? (this.tpCount / total) * 100 : 0,
     };
   }

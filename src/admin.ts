@@ -25,6 +25,9 @@ export const DEFAULT_SETTINGS = {
   sl_pct: 0.4,
   rr1: 1.5,
   rr2: 3.0,
+  use_breakeven: false,
+  be_trigger_r: 0.5,
+  be_offset_pct: 0.1,
   use_close_tp1: true,
   use_close_sl: true,
   use_close_opp: true,
@@ -60,6 +63,9 @@ const settingsSchema = {
     sl_pct: numb(0.01, 20),
     rr1: numb(0.1, 20),
     rr2: numb(0.1, 20),
+    use_breakeven: bool,
+    be_trigger_r: numb(0.1, 20),
+    be_offset_pct: numb(0, 5),
     use_close_tp1: bool,
     use_close_sl: bool,
     use_close_opp: bool,
@@ -116,6 +122,18 @@ export async function adminRoutes(fastify: FastifyInstance) {
       const body = req.body;
       if (body.ema_fast >= body.ema_slow) {
         return reply.code(400).send({ ok: false, error: "Fast EMA ต้องน้อยกว่า Slow EMA" });
+      }
+      if (body.use_breakeven && body.use_close_tp1 && body.be_trigger_r >= body.rr1) {
+        return reply
+          .code(400)
+          .send({ ok: false, error: "BE trigger ต้องน้อยกว่า TP1 (RR) ไม่งั้น TP1 ปิดก่อนทุกครั้ง" });
+      }
+      // SL ใหม่ (entry ± offset) ต้องอยู่หลังราคาที่ trigger ไม่งั้นแท่งถัดไปโดนแทบทันที
+      if (body.use_breakeven && body.be_offset_pct >= body.be_trigger_r * body.sl_pct) {
+        return reply.code(400).send({
+          ok: false,
+          error: `BE offset ต้องน้อยกว่า trigger × SL% (= ${(body.be_trigger_r * body.sl_pct).toFixed(3)}%)`,
+        });
       }
 
       const { data, error } = await supabase

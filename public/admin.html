@@ -203,6 +203,18 @@
       </div>
 
       <div class="card">
+        <h2>④·5 Breakeven <span class="hint">เช็คตอนแท่งปิด, SL ใหม่มีผลแท่งถัดไป</span></h2>
+        <div class="grid">
+          <label class="toggle"><input type="checkbox" name="use_breakeven">
+            เลื่อน SL ไปจุดคุ้มทุนเมื่อกำไรถึง X R <small>— ไม้ที่เคยกำไรแล้วจะไม่กลับมาโดน SL เต็ม</small></label>
+          <label class="field" title="ต้องน้อยกว่า TP1 (RR) เช่น rr1=0.6 → ตั้ง 0.4"><span class="t">Trigger (R)</span>
+            <input type="number" name="be_trigger_r" min="0.1" max="20" step="0.1"></label>
+          <label class="field" title="0.1 ≈ ค่าธรรมเนียมเปิด+ปิด → ออกที่ BE ได้ประมาณ 0 สุทธิ | ต้องน้อยกว่า trigger × SL%"><span class="t">SL ใหม่ = entry ± (%)</span>
+            <input type="number" name="be_offset_pct" min="0" max="5" step="0.01"></label>
+        </div>
+      </div>
+
+      <div class="card">
         <h2>⑤ Close Signal</h2>
         <div class="grid">
           <label class="toggle"><input type="checkbox" name="use_close_tp1"> ปิดเมื่อราคาแตะ TP1</label>
@@ -342,6 +354,10 @@ form.onsubmit = async (e) => {
   e.preventDefault();
   const body = readForm();
   if (body.ema_fast >= body.ema_slow) return setMsg("Fast EMA ต้องน้อยกว่า Slow EMA", "bad");
+  if (body.use_breakeven && body.use_close_tp1 && body.be_trigger_r >= body.rr1)
+    return setMsg("BE trigger ต้องน้อยกว่า TP1 (RR) ไม่งั้น TP1 ปิดก่อนทุกครั้ง", "bad");
+  if (body.use_breakeven && body.be_offset_pct >= body.be_trigger_r * body.sl_pct)
+    return setMsg(`BE offset ต้องน้อยกว่า trigger × SL% (= ${(body.be_trigger_r * body.sl_pct).toFixed(3)}%) ไม่งั้น SL ใหม่อยู่เหนือราคาที่ trigger`, "bad");
   if (body.enabled && !confirm("บันทึกและรีโหลด engine?\nengine จะเริ่มส่งคำสั่งจริงไป Binance เมื่อเกิดสัญญาณ")) return;
   $("#saveBtn").disabled = true;
   setMsg("กำลังบันทึก…");
@@ -368,7 +384,7 @@ function levelBox(title, lv, cls) {
   if (!lv) return `<div class="lv"><h3>${title}</h3><div style="color:var(--muted)">ไม่มี position</div></div>`;
   return `<div class="lv"><h3 class="${cls}">${title}</h3>
     <div class="row"><span>Entry</span><span class="mono">${fmt(lv.entry)}</span></div>
-    <div class="row"><span>SL</span><span class="mono down">${fmt(lv.sl)}</span></div>
+    <div class="row"><span>SL</span><span class="mono down">${lv.be ? '<span class="tag blocked">BE</span> ' : ""}${fmt(lv.sl)}</span></div>
     <div class="row"><span>TP1</span><span class="mono up">${fmt(lv.tp1)}</span></div>
     <div class="row"><span>TP2</span><span class="mono up">${fmt(lv.tp2)}</span></div></div>`;
 }
@@ -396,11 +412,11 @@ function renderStatus(st) {
       <div class="stat"><div class="k">EMA slope (× ATR)</div><div class="v"><span class="${i.slope.toLowerCase()}">${i.slope}</span> <span class="mono" style="color:var(--muted);font-size:13px">${fmt(i.slopeInAtr, 3)}</span></div></div>
       <div class="stat"><div class="k">BTC bias</div><div class="v">${trendCell(i.htfTrend)}</div></div>
       <div class="stat"><div class="k">Volume</div><div class="v">${i.volOk ? '<span class="up">OK ✔</span>' : '<span class="flat">low ✖</span>'} <span class="mono" style="color:var(--muted);font-size:13px">${fmt(i.volume, 1)} / ${fmt(i.volAvg, 1)}</span></div></div>
-      <div class="stat"><div class="k">TP / SL hits</div><div class="v"><span class="up">${i.tpCount}</span> / <span class="down">${i.slCount}</span></div></div>
+      <div class="stat"><div class="k">TP / BE / SL</div><div class="v"><span class="up">${i.tpCount}</span> / <span class="flat">${i.beCount ?? 0}</span> / <span class="down">${i.slCount}</span></div></div>
       <div class="stat"><div class="k">Win rate</div><div class="v mono">${fmt(i.winRate, 1)}% <span style="color:var(--muted);font-size:13px">(${i.tpCount + i.slCount})</span></div></div>
     </div>
     <div class="levels">${levelBox("LONG", i.long, "up")}${levelBox("SHORT", i.short, "down")}</div>
-    <div style="color:var(--muted);font-size:12px;margin-top:8px">TP/SL hits นับรวมช่วง warm-up ย้อนหลัง</div>`);
+    <div style="color:var(--muted);font-size:12px;margin-top:8px">TP/BE/SL นับรวมช่วง warm-up ย้อนหลัง</div>`);
 
   $("#events").innerHTML = st.events.length ? `<table><thead><tr><th>เวลาแท่ง</th><th>Action</th><th>ราคา</th><th>หมายเหตุ</th></tr></thead><tbody>${
     st.events.map((e) => `<tr><td>${time(e.barTime)}</td><td>${esc(e.action)}</td><td class="mono">${fmt(e.price)}</td><td class="reason">${esc(e.reason || "")}</td></tr>`).join("")
