@@ -6,7 +6,9 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "tsx watch --env-file=.env src/index.ts"
+    "dev": "tsx watch --env-file=.env src/index.ts",
+    "backtest": "tsx --env-file=.env scripts/backtest.ts",
+    "optimize": "tsx --env-file=.env scripts/optimize.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
