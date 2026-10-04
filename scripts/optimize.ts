@@ -2,6 +2,9 @@
 //
 //   npm run optimize -- --strategy rsi_bnb_v1 --interval 15m --days 365 --test-days 90
 //
+// PowerShell ตัด "--" ทิ้งแล้ว npm จะกิน --flag ไปหมด → ใช้รูปแบบนี้แทน (ใช้ได้ทุก shell):
+//   npm run optimize rsi_bnb_v1 1h days=1095 test-days=270 min-train=80
+//
 // ผลทั้งหมดบันทึกที่ .cache/optimize_<strategy>_<interval>.json
 
 import { writeFileSync } from "node:fs";
@@ -13,19 +16,19 @@ const GRID = {
   ema: [[5, 13], [9, 21], [12, 26], [21, 50]],
   slope: [null, [3, 0.05], [3, 0.1], [3, 0.2]] as ([number, number] | null)[],
   vol: [null, 1.0, 1.3, 1.6] as (number | null)[],
-  htf: [null, ["15m", 2], ["1h", 2], ["1h", 5], ["4h", 2]] as ([string, number] | null)[],
-  sl_pct: [0.8, 1.2, 1.6, 2.2],
+  // ตัด TF ที่เล็กกว่า interval หลักออกตอนรัน
+  htf: [null, ["15m", 2], ["1h", 2], ["1h", 5], ["4h", 2], ["1d", 2]] as ([string, number] | null)[],
+  sl_pct: [0.8, 1.2, 1.6, 2.2, 3.0],
   rr1: [1.0, 1.5, 2.0],
   breakeven: [false, true],
   opp: [true, false],
 };
 
-const MIN_TRAIN_TRADES = 100;
-const MIN_TEST_TRADES = 25;
-
 function parseArgs() {
-  const a = process.argv.slice(2);
-  const out = { strategy: "", interval: "15m", days: 365, testDays: 90, fee: 0.05, top: 20 };
+  // k=v → --k v
+  const a = process.argv.slice(2).flatMap((x) => (!x.startsWith("--") && x.includes("=") ? [`--${x.slice(0, x.indexOf("="))}`, x.slice(x.indexOf("=") + 1)] : [x]));
+  const out = { strategy: "", interval: "15m", days: 365, testDays: 90, fee: 0.05, top: 20, minTrain: 100, minTest: 25 };
+  const positional: string[] = [];
   for (let i = 0; i < a.length; i++) {
     if (a[i] === "--strategy") out.strategy = a[++i];
     else if (a[i] === "--interval") out.interval = a[++i];
@@ -33,16 +36,23 @@ function parseArgs() {
     else if (a[i] === "--test-days") out.testDays = Number(a[++i]);
     else if (a[i] === "--fee") out.fee = Number(a[++i]);
     else if (a[i] === "--top") out.top = Number(a[++i]);
+    else if (a[i] === "--min-train") out.minTrain = Number(a[++i]);
+    else if (a[i] === "--min-test") out.minTest = Number(a[++i]);
+    else if (a[i].startsWith("--")) throw new Error(`ไม่รู้จัก option: ${a[i]}`);
+    else positional.push(a[i]);
   }
+  out.strategy ||= positional[0] ?? "";
+  if (positional[1]) out.interval = positional[1];
   if (!out.strategy) throw new Error("ต้องระบุ --strategy <name>");
   return out;
 }
 
 function* combos(base: IndicatorSettingsRow, interval: string): Generator<IndicatorSettingsRow> {
+  const htfs = GRID.htf.filter((h) => !h || intervalMs(h[0]) >= intervalMs(interval));
   for (const [fast, slow] of GRID.ema)
     for (const slope of GRID.slope)
       for (const vol of GRID.vol)
-        for (const htf of GRID.htf)
+        for (const htf of htfs)
           for (const sl_pct of GRID.sl_pct)
             for (const rr1 of GRID.rr1)
               for (const be of GRID.breakeven)
@@ -118,7 +128,7 @@ async function main() {
 
   // จัดอันดับจาก train เท่านั้น (PF) — test ไว้ดูว่ารอดนอกช่วงที่ใช้เลือกไหม
   const ranked = results
-    .filter((r) => r.train.n >= MIN_TRAIN_TRADES && r.test.n >= MIN_TEST_TRADES)
+    .filter((r) => r.train.n >= args.minTrain && r.test.n >= args.minTest)
     .sort((a, b) => b.train.pf - a.train.pf);
 
   const pos = ranked.filter((r) => r.train.totalPct > 0);

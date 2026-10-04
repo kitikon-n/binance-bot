@@ -2,6 +2,7 @@
 //
 //   npm run backtest -- --strategy rsi_bnb_v1 --days 90
 //   npm run backtest -- --strategy rsi_bnb_v1 --set interval=5m --set sl_pct=0.7
+//   npm run backtest rsi_bnb_v1 days=365 interval=1h sl_pct=2.2   (รูปแบบนี้ใช้ได้บน PowerShell)
 //
 // --strategy  โหลด settings จาก indicator_settings (+ symbol จาก strategies)
 // --days      ช่วงที่วัดผล (default 90) — ก่อนหน้านั้นมี warm-up อีก 1000 แท่งเหมือน engine
@@ -22,6 +23,11 @@ function parseArgs() {
     else if (a[i] === "--days") out.days = Number(a[++i]);
     else if (a[i] === "--fee") out.fee = Number(a[++i]);
     else if (a[i] === "--set") out.sets.push(a[++i]);
+    // PowerShell ตัด "--" ทิ้งแล้ว npm กิน --flag → รับ days=90 / fee=0.05 / k=v (override) / ชื่อ strategy แทน
+    else if (a[i].startsWith("days=")) out.days = Number(a[i].slice(5));
+    else if (a[i].startsWith("fee=")) out.fee = Number(a[i].slice(4));
+    else if (a[i].includes("=")) out.sets.push(a[i]);
+    else out.strategy ||= a[i];
   }
   if (!out.strategy) throw new Error("ต้องระบุ --strategy <name>");
   return out;
