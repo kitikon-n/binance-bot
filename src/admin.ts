@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { supabase } from "./supabase.js";
 import { engineStatus, reloadEngine } from "./engine.js";
 import { VALID_INTERVALS } from "./market/klines.js";
+import { getAccountSummary } from "./binance.js";
 
 // ค่า default = ค่าเดียวกับ input ใน Pine Script
 export const DEFAULT_SETTINGS = {
@@ -152,6 +153,19 @@ export async function adminRoutes(fastify: FastifyInstance) {
   );
 
   fastify.get("/api/engine/status", async () => engineStatus());
+
+  // cache สั้น ๆ กัน UI หลายแท็บยิง Binance ถี่เกิน (weight 5+5 ต่อครั้ง)
+  let accountCache: { at: number; data: unknown } | null = null;
+  fastify.get("/api/account", async (_req, reply) => {
+    if (accountCache && Date.now() - accountCache.at < 5000) return accountCache.data;
+    try {
+      const data = await getAccountSummary();
+      accountCache = { at: Date.now(), data };
+      return data;
+    } catch (err) {
+      return reply.code(502).send({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
 
   fastify.get<{ Querystring: { strategy?: string } }>("/api/signals/recent", async (req) => {
     let q = supabase

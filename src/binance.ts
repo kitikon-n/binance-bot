@@ -74,6 +74,49 @@ export async function getPositions(symbol: string) {
   };
 }
 
+// ภาพรวมพอร์ต Futures: ยอดรวม (USDT-M) + position ที่เปิดอยู่ทุก symbol
+export async function getAccountSummary() {
+  const [account, risks] = await Promise.all([
+    signedRequest("GET", "/fapi/v2/account"),
+    signedRequest("GET", "/fapi/v2/positionRisk"),
+  ]);
+  const num = (v: any) => parseFloat(v) || 0;
+
+  return {
+    walletBalance: num(account.totalWalletBalance),
+    unrealizedPnl: num(account.totalUnrealizedProfit),
+    marginBalance: num(account.totalMarginBalance),
+    availableBalance: num(account.availableBalance),
+    positionMargin: num(account.totalPositionInitialMargin),
+    orderMargin: num(account.totalOpenOrderInitialMargin),
+    maintMargin: num(account.totalMaintMargin),
+    assets: (account.assets ?? [])
+      .filter((a: any) => num(a.walletBalance) !== 0 || num(a.unrealizedProfit) !== 0)
+      .map((a: any) => ({
+        asset: a.asset,
+        walletBalance: num(a.walletBalance),
+        unrealizedPnl: num(a.unrealizedProfit),
+        marginBalance: num(a.marginBalance),
+        availableBalance: num(a.availableBalance),
+      })),
+    positions: (risks as any[])
+      .filter((p) => num(p.positionAmt) !== 0)
+      .map((p) => ({
+        symbol: p.symbol,
+        positionSide: p.positionSide,
+        amount: num(p.positionAmt),
+        entryPrice: num(p.entryPrice),
+        markPrice: num(p.markPrice),
+        liquidationPrice: num(p.liquidationPrice),
+        notional: num(p.notional),
+        unrealizedPnl: num(p.unRealizedProfit),
+        leverage: num(p.leverage),
+        marginType: p.marginType,
+      })),
+    updatedAt: Date.now(),
+  };
+}
+
 export async function placeFuturesOrder(
   params: Record<string, string | number>
 ) {

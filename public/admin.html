@@ -243,6 +243,11 @@
   <!-- ─── Dashboard ────────────────────────────────────────── -->
   <section>
     <div class="card">
+      <h2>พอร์ต Binance Futures <span class="hint" id="accTime"></span></h2>
+      <div id="account"><div class="empty">กำลังโหลด…</div></div>
+    </div>
+
+    <div class="card">
       <h2>สถานะ indicator <span class="hint" id="barTime"></span></h2>
       <div id="dash"><div class="empty">engine ยังไม่ทำงานสำหรับ strategy นี้</div></div>
     </div>
@@ -431,6 +436,37 @@ function renderSignals(rows) {
   }</tbody></table>` : '<div class="empty">ยังไม่มีข้อมูล</div>';
 }
 
+const pnl = (v, d = 2) => `<span class="${v > 0 ? "up" : v < 0 ? "down" : ""}">${v > 0 ? "+" : ""}${fmt(v, d)}</span>`;
+
+function renderAccount(a) {
+  const pnlPct = a.walletBalance ? (a.unrealizedPnl / a.walletBalance) * 100 : 0;
+  $("#accTime").textContent = "อัปเดต " + time(a.updatedAt);
+  $("#account").innerHTML = `
+    <div class="stats">
+      <div class="stat"><div class="k">มูลค่าพอร์ต (Margin balance)</div><div class="v mono">${fmt(a.marginBalance, 2)} <small style="color:var(--muted)">USDT</small></div></div>
+      <div class="stat"><div class="k">Unrealized PnL</div><div class="v mono">${pnl(a.unrealizedPnl)} <small style="color:var(--muted)">(${fmt(pnlPct, 2)}%)</small></div></div>
+      <div class="stat"><div class="k">Wallet balance</div><div class="v mono">${fmt(a.walletBalance, 2)}</div></div>
+      <div class="stat"><div class="k">Available</div><div class="v mono">${fmt(a.availableBalance, 2)}</div></div>
+      <div class="stat"><div class="k">Position margin</div><div class="v mono">${fmt(a.positionMargin, 2)}</div></div>
+      <div class="stat"><div class="k">Maint. margin</div><div class="v mono">${fmt(a.maintMargin, 2)}</div></div>
+    </div>
+    ${a.assets.length > 1 ? `<div style="color:var(--muted);font-size:12px;margin-top:8px">สินทรัพย์: ${
+      a.assets.map((x) => `${esc(x.asset)} <span class="mono">${fmt(x.walletBalance, 4)}</span>`).join(" · ")}</div>` : ""}
+    <div class="tablewrap" style="margin-top:10px">${a.positions.length ? `<table><thead><tr>
+      <th>Symbol</th><th>Side</th><th>Size</th><th>Entry</th><th>Mark</th><th>Liq.</th><th>Notional</th><th>uPnL</th><th>Lev</th></tr></thead><tbody>${
+      a.positions.map((p) => `<tr><td>${esc(p.symbol)}</td>
+        <td class="${p.positionSide === "SHORT" || (p.positionSide === "BOTH" && p.amount < 0) ? "down" : "up"}">${esc(p.positionSide)}</td>
+        <td class="mono">${p.amount}</td><td class="mono">${fmt(p.entryPrice)}</td><td class="mono">${fmt(p.markPrice)}</td>
+        <td class="mono">${p.liquidationPrice ? fmt(p.liquidationPrice) : "—"}</td><td class="mono">${fmt(Math.abs(p.notional), 2)}</td>
+        <td class="mono">${pnl(p.unrealizedPnl)}</td><td class="mono">${p.leverage}x</td></tr>`).join("")
+    }</tbody></table>` : '<div class="empty">ไม่มี position เปิดอยู่</div>'}</div>`;
+}
+
+async function refreshAccount() {
+  try { renderAccount(await api("/api/account")); }
+  catch (err) { $("#account").innerHTML = `<div class="msg bad">ดึงข้อมูลพอร์ตไม่ได้: ${esc(err.message)}</div>`; }
+}
+
 async function refresh() {
   const name = $("#strategy").value;
   if (!name) return;
@@ -449,6 +485,8 @@ async function refresh() {
 
 loadStrategies().catch((err) => setMsg("โหลดไม่สำเร็จ: " + err.message, "bad"));
 setInterval(() => { if (!document.hidden) refresh(); }, 5000);
+refreshAccount();
+setInterval(() => { if (!document.hidden) refreshAccount(); }, 10000);
 </script>
 </body>
 </html>
